@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'package:image_picker/image_picker.dart';
-import 'package:gallery_saver/gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_face_api/face_api.dart';
 
@@ -105,16 +104,10 @@ class _CheckInScreenState extends State<CheckInScreen> {
       widget.images.add(capturedImageFile);
       _checkInController.clear();
     });
-
-    await _saveImageToGallery(capturedImage);
   }
 
   Future<XFile?> _pickImage() async {
     return await _picker.pickImage(source: ImageSource.camera);
-  }
-
-  Future<void> _saveImageToGallery(String path) async {
-    await GallerySaver.saveImage(path);
   }
 
   // Request permission to access the device's camera.

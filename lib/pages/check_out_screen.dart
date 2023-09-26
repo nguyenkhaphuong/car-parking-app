@@ -75,11 +75,29 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       return image;
     }
 
-    // Compare the new image with all existing images
-    var request = MatchFacesRequest();
-    request.images = [
+    // Check if both faces match
+    _matchFaces(
       convertFileToMatchFacesImage(capturedImage),
       convertFileToMatchFacesImage(widget.images[index]!),
+    );
+
+    setState(() {
+      widget.inputList.removeAt(index);
+      widget.images.removeAt(index);
+      _checkOutController.clear();
+    });
+  }
+
+  Future<XFile?> _pickImage() async {
+    return await _picker.pickImage(source: ImageSource.camera);
+  }
+
+  //Function to compare images if both faces match
+  void _matchFaces(MatchFacesImage image1, MatchFacesImage image2) async {
+    var request = MatchFacesRequest();
+    request.images = [
+      image1,
+      image2,
     ];
 
     var response = await FaceSDK.matchFaces(jsonEncode([request]));
@@ -94,20 +112,10 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
       return;
     }
 
-    setState(() {
-      widget.inputList.removeAt(index);
-      widget.images.removeAt(index);
-      _checkOutController.clear();
-    });
-
     _showDialog(
       "Match Found",
       "The entered data matches. Have a good day!",
     );
-  }
-
-  Future<XFile?> _pickImage() async {
-    return await _picker.pickImage(source: ImageSource.camera);
   }
 
   // Boolean function to check for input validation

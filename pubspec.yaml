@@ -41,7 +41,6 @@ dependencies:
   path_provider: ^2.0.15
   permission_handler: ^10.4.3
   path: ^1.8.3
-  gallery_saver: ^2.3.2
   crypto: ^3.0.3
   file_picker: ^5.5.0
   flutter_face_api: ^5.2.0

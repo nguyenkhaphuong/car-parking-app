@@ -16,6 +16,16 @@ class NumberListView extends StatefulWidget {
 }
 
 class _NumberListViewState extends State<NumberListView> {
+  late List<int> items;
+  late List<File?> images;
+
+  @override
+  void initState() {
+    super.initState();
+    items = widget.item;
+    images = widget.images;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
@@ -32,14 +42,14 @@ class _NumberListViewState extends State<NumberListView> {
           ),
           child: ListTile(
             title: Text(
-              'Your Check In Number: ${widget.item[index].toString()}',
+              'Your Check In Number: ${items[index].toString()}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
             ),
             leading: CircleAvatar(
-              backgroundImage: FileImage(widget.images[index]!),
+              backgroundImage: FileImage(images[index]!),
             ),
             onTap: () {
               _showDialog(context, index);
@@ -55,16 +65,16 @@ class _NumberListViewState extends State<NumberListView> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Your Check In Number: ${widget.item[index].toString()}'),
+          title: Text('Your Check In Number: ${items[index].toString()}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircleAvatar(
-                backgroundImage: FileImage(widget.images[index]!),
+                backgroundImage: FileImage(images[index]!),
                 maxRadius: 120,
               ),
               const SizedBox(height: 20),
-              Text('Your Check In Number: ${widget.item[index].toString()}'),
+              Text('Your Check In Number: ${items[index].toString()}'),
             ],
           ),
           actions: [
