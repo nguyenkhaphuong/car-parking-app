@@ -1,11 +1,11 @@
-import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_face_api/face_api.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
 
 //Import components
 import '../components/components.dart';
@@ -30,6 +30,7 @@ class CheckInScreen extends StatefulWidget {
 class _CheckInScreenState extends State<CheckInScreen> {
   final TextEditingController _checkInController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final faceDetector = GoogleMlKit.vision.faceDetector();
 
   // Function to display an alert dialog
   Future<void> _showDialog(String title, String message) {
@@ -67,35 +68,31 @@ class _CheckInScreenState extends State<CheckInScreen> {
     final String capturedImage = image.path;
     final File capturedImageFile = File(capturedImage);
 
-    // Convert File to MatchFacesImage object
-    MatchFacesImage convertFileToMatchFacesImage(File file) {
-      List<int> imageBytes = file.readAsBytesSync();
-      String base64Image = base64Encode(imageBytes);
+    final inputImage = InputImage.fromFilePath(capturedImage);
 
-      var image = MatchFacesImage();
-      image.bitmap = base64Image;
+    final List<Face> newFaces = await faceDetector.processImage(inputImage);
 
-      return image;
+    if (newFaces.isEmpty) {
+      _showDialog(
+        "No face detected",
+        "No face was detected. Please try again!",
+      );
+      return;
     }
 
     // Compare the new image with all existing images
     for (var existingImage in widget.images) {
-      var request = MatchFacesRequest();
-      request.images = [
-        convertFileToMatchFacesImage(capturedImageFile),
-        convertFileToMatchFacesImage(existingImage!)
-      ];
+      final existingInputImage = InputImage.fromFilePath(existingImage!.path);
+      final List<Face> existingFaces =
+          await faceDetector.processImage(existingInputImage);
 
-      var response = await FaceSDK.matchFaces(jsonEncode([request]));
-      var split = MatchFacesSimilarityThresholdSplit.fromJson(
-          json.decode(response.results));
-
-      if (split!.matchedFaces.isNotEmpty) {
+      if (_isFaceDuplicate(newFaces[0], existingFaces)) {
         _showDialog(
           "Duplicate Found",
           "A person with a similar face already exists. Try again.",
         );
-        return;
+
+        break;
       }
     }
 
@@ -144,6 +141,53 @@ class _CheckInScreenState extends State<CheckInScreen> {
     }
 
     return true;
+  }
+
+  bool _isFaceDuplicate(Face newFace, List<Face> existingFaces) {
+    for (var existingFace in existingFaces) {
+      if (_isSimilar(newFace.landmarks, existingFace.landmarks)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isSimilar(
+    Map<FaceLandmarkType, FaceLandmark?> newLandmarks,
+    Map<FaceLandmarkType, FaceLandmark?> existingLandmarks,
+  ) {
+    double totalDistance = 0;
+    int count = 0;
+
+    for (var type in FaceLandmarkType.values) {
+      if (newLandmarks.containsKey(type) &&
+          existingLandmarks.containsKey(type)) {
+        final newLandmark = newLandmarks[type];
+        final existingLandmark = existingLandmarks[type];
+
+        if (newLandmark != null && existingLandmark != null) {
+          debugPrint(
+              'New landmark type: $type, position: ${newLandmark.position}');
+          debugPrint(
+              'Existing landmark type: $type, position: ${existingLandmark.position}');
+
+          final dx = newLandmark.position.x - existingLandmark.position.x;
+          final dy = newLandmark.position.y - existingLandmark.position.y;
+
+          debugPrint('dx: $dx');
+          debugPrint('dy: $dy');
+
+          final distance = sqrt(dx * dx + dy * dy);
+          totalDistance += distance;
+          count++;
+        }
+      }
+    }
+
+    if (count == 0) return false; // No common landmarks
+
+    final averageDistance = totalDistance / count;
+    return averageDistance < 50;
   }
 
   // Function to navigate to Check Out Screen when the 'Check Out' button is clicked

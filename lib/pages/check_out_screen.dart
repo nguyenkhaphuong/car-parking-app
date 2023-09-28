@@ -1,7 +1,7 @@
-import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_face_api/face_api.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
 
 import 'dart:io';
 // import 'package:file_picker/file_picker.dart';
@@ -62,23 +62,37 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     int number = int.parse(_checkOutController.text);
     int index = widget.inputList.indexOf(number);
 
-    final capturedImage = File(image.path);
+    final String capturedImage = image.path;
 
-    // Convert File to MatchFacesImage object
-    MatchFacesImage convertFileToMatchFacesImage(File file) {
-      List<int> imageBytes = file.readAsBytesSync();
-      String base64Image = base64Encode(imageBytes);
+    final inputImage = InputImage.fromFilePath(capturedImage);
+    final faceDetector = GoogleMlKit.vision.faceDetector();
+    final List<Face> newFaces = await faceDetector.processImage(inputImage);
 
-      var image = MatchFacesImage();
-      image.bitmap = base64Image;
-
-      return image;
+    if (newFaces.isEmpty) {
+      _showDialog(
+        "No face detected",
+        "No face was detected. Please try again!",
+      );
+      return;
     }
 
     // Check if both faces match
-    _matchFaces(
-      convertFileToMatchFacesImage(capturedImage),
-      convertFileToMatchFacesImage(widget.images[index]!),
+    var existingImage = widget.images[index]!;
+    final existingInputImage = InputImage.fromFilePath(existingImage.path);
+    final List<Face> existingFaces =
+        await faceDetector.processImage(existingInputImage);
+
+    if (!_isFaceDuplicate(newFaces[0], existingFaces)) {
+      _showDialog(
+        "No Face Match Found",
+        "The faces don't match. Try again!",
+      );
+      return;
+    }
+
+    _showDialog(
+      "Face Match",
+      "Data and Face match. You can leave the building. Have a good day!",
     );
 
     setState(() {
@@ -92,30 +106,41 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     return await _picker.pickImage(source: ImageSource.camera);
   }
 
-  //Function to compare images if both faces match
-  void _matchFaces(MatchFacesImage image1, MatchFacesImage image2) async {
-    var request = MatchFacesRequest();
-    request.images = [
-      image1,
-      image2,
-    ];
+  bool _isFaceDuplicate(Face newFace, List<Face> existingFaces) {
+    for (var existingFace in existingFaces) {
+      if (_isSimilar(newFace.landmarks, existingFace.landmarks)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-    var response = await FaceSDK.matchFaces(jsonEncode([request]));
-    var split = MatchFacesSimilarityThresholdSplit.fromJson(
-        json.decode(response.results));
+  bool _isSimilar(
+    Map<FaceLandmarkType, FaceLandmark?> newLandmarks,
+    Map<FaceLandmarkType, FaceLandmark?> existingLandmarks,
+  ) {
+    double totalDistance = 0;
+    int count = 0;
 
-    if (split!.matchedFaces.isEmpty) {
-      _showDialog(
-        "No Match Found",
-        "The entered data does not match. Try again!",
-      );
-      return;
+    for (var type in FaceLandmarkType.values) {
+      if (newLandmarks.containsKey(type) &&
+          existingLandmarks.containsKey(type)) {
+        final newLandmark = newLandmarks[type]!;
+        final existingLandmark = existingLandmarks[type]!;
+
+        final dx = newLandmark.position.x - existingLandmark.position.x;
+        final dy = newLandmark.position.y - existingLandmark.position.y;
+
+        final distance = sqrt(dx * dx + dy * dy);
+        totalDistance += distance;
+        count++;
+      }
     }
 
-    _showDialog(
-      "Match Found",
-      "The entered data matches. Have a good day!",
-    );
+    if (count == 0) return false; // No common landmarks
+
+    final averageDistance = totalDistance / count;
+    return averageDistance < 10;
   }
 
   // Boolean function to check for input validation
