@@ -125,15 +125,17 @@ class _CheckOutScreenState extends State<CheckOutScreen> {
     for (var type in FaceLandmarkType.values) {
       if (newLandmarks.containsKey(type) &&
           existingLandmarks.containsKey(type)) {
-        final newLandmark = newLandmarks[type]!;
-        final existingLandmark = existingLandmarks[type]!;
+        final newLandmark = newLandmarks[type];
+        final existingLandmark = existingLandmarks[type];
 
-        final dx = newLandmark.position.x - existingLandmark.position.x;
-        final dy = newLandmark.position.y - existingLandmark.position.y;
+        if (newLandmark != null && existingLandmark != null) {
+          final dx = newLandmark.position.x - existingLandmark.position.x;
+          final dy = newLandmark.position.y - existingLandmark.position.y;
 
-        final distance = sqrt(dx * dx + dy * dy);
-        totalDistance += distance;
-        count++;
+          final distance = sqrt(dx * dx + dy * dy);
+          totalDistance += distance;
+          count++;
+        }
       }
     }
 
